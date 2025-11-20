@@ -1,0 +1,4 @@
+root: D:\Jonathan\Desktop\INFORMATICA\INF3811-ISW2\BSF-docs\bsf_ocr_service 
+path: C:\Program Files\nodejs 
+arch: 64 
+proxy: none
