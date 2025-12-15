@@ -65,7 +65,7 @@ return [
     |
     */
 
-    'timezone' => 'UTC',
+    'timezone' => 'America/La_Paz', // Bolivia UTC-4
 
     /*
     |--------------------------------------------------------------------------
@@ -122,5 +122,17 @@ return [
         'driver' => env('APP_MAINTENANCE_DRIVER', 'file'),
         'store' => env('APP_MAINTENANCE_STORE', 'database'),
     ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | User Invitation Configuration (RBAC)
+    |--------------------------------------------------------------------------
+    |
+    | Días de validez para tokens de invitación de nuevos usuarios.
+    | Después de este período, el token expirará y será necesario reenviar.
+    |
+    */
+
+    'invitation_expiration_days' => env('INVITATION_EXPIRATION_DAYS', 3),
 
 ];

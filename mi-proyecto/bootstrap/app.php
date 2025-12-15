@@ -12,11 +12,13 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        // RBAC: Registrar alias de middleware de roles para Laravel 12
+        $middleware->alias([
+            'role' => \App\Http\Middleware\CheckUserRole::class,
+            'force.password' => \App\Http\Middleware\ForcePasswordChange::class,
+            'superadmin.check' => \App\Http\Middleware\CheckSuperAdminAccess::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
     })->create();
-
-
-

@@ -17,7 +17,7 @@ class CatalogController extends Controller
             'almacenes'       => DB::table('almacenes')->select('id','nombre','tipo','base_path','activo')->orderBy('id')->get(),
             //  AJUSTADO: sin 'codigo' porque tu tabla no lo tiene
             'motivos_acceso'  => DB::table('motivos_acceso')
-                ->select('id','descripcion','requiere_texto')
+                ->select('id','descripcion','requiere_texto','can_view','can_print','can_download')
                 ->where('activo',1)
                 ->orderBy('id')
                 ->get(),

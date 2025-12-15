@@ -1,4 +1,12 @@
-import { createApp } from 'vue'
-import App from './components/App.vue'
+// resources/js/app.js
 
-createApp(App).mount('#app')
+import './bootstrap';
+import { createApp } from 'vue';
+import App from './components/App.vue';
+import router from './router'
+const app = createApp(App);
+
+// si tienes componentes base globales (BaseButton, etc.), se registran aquí
+// app.component('BaseButton', BaseButton);
+app.use(router)
+app.mount('#app');

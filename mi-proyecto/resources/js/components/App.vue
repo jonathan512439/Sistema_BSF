@@ -1,10 +1,23 @@
 <script setup>
-import { ref, onMounted, computed } from 'vue'
-import RbacPanel from './RbacPanel.vue'
-import DocumentList from './DocumentList.vue'
+import { ref, onMounted, computed, nextTick } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import AppTopbar from './layout/AppTopbar.vue'
+import AppSidebar from './layout/AppSidebar.vue'
+import DashboardView from './views/DashboardView.vue'
+import DocumentManagementView from './views/DocumentManagementView.vue'
+import AuditView from './views/AuditView.vue'
+import CertificationsView from './views/CertificationsView.vue'
+import ReportsView from './views/ReportsView.vue'
+import SettingsView from './views/SettingsView.vue'
+import UserManagementView from './views/UserManagementView.vue'
+import UbicacionesView from './views/UbicacionesView.vue'
+import AnchorDashboard from './audit/AnchorDashboard.vue'
+import ToastContainer from './ui/ToastContainer.vue'
+import { useToast } from '@/composables/useToast'
 
-const users = ref([])
-const rbac = ref({ ok: false, users: [], user_roles: [], role_permissions: [] })
+const route = useRoute()
+const router = useRouter()
+const user = ref(null)
 const catalogs = ref({
   tipos_documento: [],
   secciones: [],
@@ -14,191 +27,357 @@ const catalogs = ref({
   almacenes: [],
   motivos_acceso: [],
 })
-const userId = ref(Number(localStorage.getItem('demo_user_id') || 1))
 
-const headers = computed(() => ({
-  'X-Demo-User': String(userId.value),
-  Accept: 'application/json',
-}))
+const loading = ref(true)
+const errorMsg = ref('')
+const currentView = ref('dashboard') 
+const sidebarCollapsed = ref(false)
+const mobileSidebarOpen = ref(false)
 
-function persistUser () {
-  localStorage.setItem('demo_user_id', String(userId.value))
+// Sistema de notificaciones
+const { success, error, info, warning } = useToast()
+
+const apiHeaders = computed(() => {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || ''
+  return {
+    'Accept': 'application/json',
+    'X-Requested-With': 'XMLHttpRequest',
+    'X-CSRF-TOKEN': csrfToken,
+  }
+})
+
+const currentViewComponent = computed(() => {
+  // SuperAdmin solo ve gestión de usuarios
+  if (user.value?.role === 'superadmin') {
+    return UserManagementView
+  }
+  
+  const components = {
+    'dashboard': DashboardView,
+    'documents': DocumentManagementView,
+    'audit': AuditView,
+    'anchors': AnchorDashboard,
+    'ubicaciones': UbicacionesView,
+    'certifications': CertificationsView,
+    'reports': ReportsView,
+    'settings': SettingsView,
+    'users': UserManagementView
+  }
+  return components[currentView.value] || DashboardView
+})
+
+// Estado para forzar navegación legacy (bypass del router)
+const forceNavigationMode = ref(false)
+
+// Detectar si debemos usar router-view (rutas jerárquicas)
+// PERO: si forceNavigationMode está activo, siempre usar legacy
+const isRouterView = computed(() => {
+  if (forceNavigationMode.value) {
+    return false // Forzar legacy view
+  }
+  const routerPaths = ['/secciones', '/tipos', '/documentos']
+  return routerPaths.some(path => route.path.startsWith(path))
+})
+
+const can = (permission) => {
+  if (!user.value) return false
+  
+  const role = user.value.role
+  
+  // Admin can do everything
+  if (role === 'superadmin') return true
+  
+  // Archivist permissions
+  if (role === 'archivist') {
+    return ['doc.upload', 'doc.edit', 'doc.validate', 'doc.seal', 'doc.move', 'doc.delete'].includes(permission)
+  }
+  
+  // Reader permissions (read-only)
+  if (role === 'reader') {
+    return ['doc.view'].includes(permission)
+  }
+  
+  return false
 }
 
-async function reloadAll () {
+async function loadUserAndCatalogs() {
+  loading.value = true
+  errorMsg.value = ''
   try {
-    const r1 = await fetch('/api/rbac/users', {
-      headers: headers.value,
+    const rUser = await fetch('/api/me', {
       credentials: 'include',
+      headers: apiHeaders.value,
     })
-    const r2 = await fetch('/api/catalogs', {
-      headers: headers.value,
+    if (!rUser.ok) {
+      throw new Error('No se pudo obtener el usuario actual (HTTP ' + rUser.status + ')')
+    }
+    user.value = await rUser.json()
+    
+    // Si es SuperAdmin, redirigir a gestión de usuarios
+    if (user.value.role === 'superadmin') {
+      currentView.value = 'users'
+    }
+
+    const rCat = await fetch('/api/catalogs', {
       credentials: 'include',
+      headers: apiHeaders.value,
     })
-
-    rbac.value = await r1.json().catch(() => ({
-      ok: false,
-      users: [],
-      user_roles: [],
-      role_permissions: [],
-    }))
-    catalogs.value = await r2.json().catch(() => ({
-      tipos_documento: [],
-      secciones: [],
-      subsecciones: [],
-      gestiones: [],
-      ubicaciones: [],
-      almacenes: [],
-      motivos_acceso: [],
-    }))
-
-    users.value = rbac.value.users || []
-    if (!users.value.length) {
-      // Fallback visible de usuarios demo
-      users.value = [
-        { id: 1, name: 'Admin BSF (demo)', email: 'admin@demo.local' },
-        { id: 2, name: 'Custodio (demo)', email: 'custodio@demo.local' },
-        { id: 3, name: 'Lector (demo)', email: 'lector@demo.local' },
-      ]
+    if (!rCat.ok) {
+      throw new Error('No se pudieron obtener los catálogos (HTTP ' + rCat.status + ')')
     }
-    if (!users.value.find(u => u.id === userId.value) && users.value.length) {
-      userId.value = users.value[0].id
-      persistUser()
-    }
+    catalogs.value = await rCat.json()
+    
+    // Mostrar notificación de bienvenida
+    info(`Bienvenido, ${user.value.name}`, 'Sesión iniciada correctamente')
+    
   } catch (e) {
-    // en caso de fallo total, usamos modo demo
-    rbac.value = { ok: false, users: [], user_roles: [], role_permissions: [] }
+    console.error(e)
+    errorMsg.value = e.message || 'Error inesperado al cargar datos iniciales.'
+    error('Error al cargar aplicación', errorMsg.value)
+  } finally {
+    loading.value = false
   }
 }
 
-onMounted(reloadAll)
+/**
+ * Maneja navegación del sidebar
+ * SOLUCIÓN DEFINITIVA: Fuerza navegación a /dashboard y activa modo legacy
+ */
+async function handleNavigation(viewId) {
+  // SuperAdmin solo puede navegar a 'users'
+  if (user.value?.role === 'superadmin' && viewId !== 'users') {
+    return
+  }
+  
+  // PASO 1: Activar modo de navegación forzada (esto desactiva router-view)
+  forceNavigationMode.value = true
+  
+  // PASO 2: Cambiar la vista INMEDIATAMENTE
+  currentView.value = viewId
+  
+  // PASO 3: Forzar navegación del router a /dashboard (en background)
+  // Esto es asíncrono, no bloqueamos la UI
+  const currentPath = route.path
+  if (currentPath !== '/dashboard') {
+    // Usar nextTick para asegurar que el cambio de vista se procese primero
+    await nextTick()
+    
+    try {
+      await router.push('/dashboard')
+    } catch (err) {
+      // Ignorar errores de navegación
+      if (err.name !== 'NavigationDuplicated') {
+        console.warn('Router navigation warning:', err)
+      }
+    }
+  }
+  
+  // PASO 4: Cerrar sidebar móvil
+  if (mobileSidebarOpen.value) {
+    mobileSidebarOpen.value = false
+  }
+  
+  // PASO 5: Desactivar modo forzado después de un breve delay
+  // Esto permite que el router se estabilice
+  setTimeout(() => {
+    forceNavigationMode.value = false
+  }, 100)
+}
+
+function handleToggleCollapsed(collapsed) {
+  sidebarCollapsed.value = collapsed
+}
+
+function handleToggleMobile() {
+  mobileSidebarOpen.value = !mobileSidebarOpen.value
+}
+
+function handleCloseMobile() {
+  mobileSidebarOpen.value = false
+}
+
+async function handleLogout() {
+  try {
+    info('Cerrando sesión...', 'Por favor espera')
+    
+    const response = await fetch('/logout', {
+      method: 'POST',
+      headers: apiHeaders.value,
+      credentials: 'include'
+    })
+    
+    if (response.ok) {
+      success('Sesión cerrada correctamente', 'Hasta pronto!')
+      // Esperar un poco para que el usuario vea la notificación
+      setTimeout(() => {
+        window.location.href = '/login'
+      }, 1000)
+    } else {
+      throw new Error('Error al cerrar sesión')
+    }
+  } catch (e) {
+    console.error('Logout error:', e)
+    error('No se pudo cerrar sesión', 'Por favor, intenta de nuevo')
+  }
+}
+
+onMounted(loadUserAndCatalogs)
 </script>
 
 <template>
-  <div class="container grid" style="gap: 1rem">
-    <header class="row header-bar">
-      <div>
-        <h1 class="title">BSF — Demostración (Documentos)</h1>
-        <p class="subtitle">
-          Subir, reconocer texto (OCR), validar y sellar custodia de documentos.
-        </p>
-      </div>
+  <div class="app-container">
+    <!-- TopBar always visible -->
+    <AppTopbar
+      :user="user"
+      @toggle-menu="handleToggleMobile"
+      @navigate="handleNavigation"
+      @logout="handleLogout"
+    />
 
-      <div class="header-controls">
-        <div class="row">
-          <label class="header-label">Usuario:</label>
-          <select v-model.number="userId" @change="persistUser" class="btn">
-            <option v-for="u in users" :key="u.id" :value="u.id">
-              {{ u.name }} (id: {{ u.id }})
-            </option>
-          </select>
-          <button class="btn olive" @click="reloadAll">Actualizar</button>
-        </div>
-      </div>
-    </header>
+    <!-- Main content area -->
+    <div v-if="loading" class="app-loading">
+      <div class="spinner"></div>
+      <p>Cargando sistema...</p>
+    </div>
 
-    <section
-      v-if="!rbac.ok"
-      class="card"
-      style="border-color: #b45309; background: #fffbeb"
-    >
-      <b style="color: #92400e">Aviso RBAC:</b>
-      No se encontraron roles/permisos desde la API. Usando
-      <b>modo demo</b> (permisos ficticios por usuario). Importa el seed
-      <i>bsf_seed_demo.sql</i> para datos reales.
-    </section>
+    <div v-else-if="errorMsg" class="app-error">
+      <h2>⚠️ Error</h2>
+      <p>{{ errorMsg }}</p>
+      <button @click="loadUserAndCatalogs">Reintentar</button>
+    </div>
 
-    <section class="card">
-      <h2 style="margin: 0 0 0.25rem 0">
-        Roles y permisos
-        <span class="badge">
-          {{ rbac.ok ? 'Desde BD' : 'Demo' }}
-        </span>
-      </h2>
-      <RbacPanel :rbac="rbac" />
-    </section>
-
-    <section class="card">
-      <h2 style="margin: 0 0 0.25rem 0">Gestión de documentos</h2>
-      <DocumentList
-        :headers="headers"
-        :rbac="rbac"
+    <div v-else class="app-layout">
+      <AppSidebar
+        :current-view="currentView"
+        :user="user"
+        :mobile-open="mobileSidebarOpen"
+        @navigate="handleNavigation"
+        @logout="handleLogout"
+        @toggle-collapsed="handleToggleCollapsed"
+        @close-mobile="handleCloseMobile"
+      />
+      
+      <main class="main-content">
+      <!-- 
+        SISTEMA HÍBRIDO DE NAVEGACIÓN:
+        - Si la ruta actual es del router (/secciones, /tipos, /documentos) → usa router-view
+        - Si no → usa sistema legacy de componentes
+      -->
+      
+      <!-- Router View para vistas jerárquicas -->
+      <router-view
+        v-show="isRouterView"
+        :user="user"
+        :headers="apiHeaders"
         :catalogs="catalogs"
       />
-    </section>
+      
+      <!-- Component View para vistas legacy -->
+      <component
+        v-show="!isRouterView"
+        :is="currentViewComponent"
+        :user="user"
+        :headers="apiHeaders"
+        :catalogs="catalogs"
+        :can="can"
+      />
+    </main>
+    </div>
+    
+    <!-- Toast Container Global -->
+    <ToastContainer />
   </div>
 </template>
 
 <style>
-.container {
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 1rem;
-}
-.header-bar {
-  justify-content: space-between;
-  align-items: flex-start;
-}
-.header-controls {
-  display: flex;
-  flex-direction: column;
-  gap: 0.4rem;
-  align-items: flex-end;
-}
-.header-label {
-  font-size: 0.8rem;
-  color: #4b5563;
-}
-.title {
-  color: #1f2933;
-  font-weight: 700;
-  margin: 0;
-}
-.subtitle {
-  margin: 0.15rem 0 0;
-  font-size: 0.9rem;
-  color: #6b7280;
-}
-.row {
-  display: flex;
-  gap: 0.75rem;
-  align-items: center;
-  flex-wrap: wrap;
-}
-.card {
-  border: 1px solid #e5e7eb;
-  border-radius: 12px;
-  padding: 14px;
-  background: #fff;
-}
-.btn {
-  padding: 0.45rem 0.7rem;
-  border: 1px solid #d1d5db;
-  border-radius: 0.5rem;
-  background: #f9fafb;
-  cursor: pointer;
-  font-size: 0.85rem;
-}
-.btn.olive {
-  background: #556b2f;
-  color: #fff;
-  border-color: #4b5f2a;
-}
-.badge {
-  display: inline-block;
-  padding: 0.05rem 0.45rem;
-  border-radius: 999px;
-  font-size: 0.75rem;
-  background: #e5e7eb;
+* {
+  box-sizing: border-box;
 }
 
-@media (max-width: 800px) {
-  .header-bar {
-    flex-direction: column;
-    gap: 0.75rem;
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  background: #f3f4f6;
+}
+
+.app-container {
+  width: 100%;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.app-loading,
+.app-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: calc(100vh - 75px);
+  margin-top: 75px;
+  gap: 1rem;
+}
+
+.spinner {
+  width: 50px;
+  height: 50px;
+  border: 4px solid #e5e7eb;
+  border-top-color: #556b2f;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.app-loading p {
+  color: #6b7280;
+  font-size: 1rem;
+}
+
+.app-error {
+  text-align: center;
+  color: #dc2626;
+}
+
+.app-error button {
+  padding: 0.75rem 1.5rem;
+  background: #dc2626;
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app-layout {
+  display: flex;
+  height: 100vh;
+  overflow: hidden;
+}
+
+.main-content {
+  flex: 1;
+  margin-left: 280px;
+  margin-top: 75px; /* Topbar height */
+  overflow-y: auto;
+  background: #f9fafb;
+  transition: margin-left 0.3s ease;
+  min-height: calc(100vh - 75px);
+}
+
+.main-content.sidebar-collapsed {
+  margin-left: 80px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .main-content {
+    margin-left: 0 !important;
   }
-  .header-controls {
-    align-items: flex-start;
+  
+  .main-content.sidebar-collapsed {
+    margin-left: 0;
   }
 }
 </style>
