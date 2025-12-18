@@ -67,14 +67,14 @@
         </div>
       </div>
 
-      <div v-if="error" class="error">{{ error }}</div>
+      <div v-if="loadError" class="error">{{ loadError }}</div>
 
-      <div class="wm-overlay" v-if="!error">
+      <div class="wm-overlay" v-if="!loadError">
         {{ wm.user }} · {{ wm.email }} · {{ wm.ip }} ·
         {{ wm.ts }} · {{ watermarkHash || '(sin hash de custodia)' }}
       </div>
 
-      <iframe v-if="pdfUrl && !error" :src="pdfUrl" class="iframe"></iframe>
+      <iframe v-if="pdfUrl && !loadError" :src="pdfUrl" class="iframe"></iframe>
       <div v-else-if="loading" class="loading">Cargando…</div>
     </div>
 
@@ -106,6 +106,7 @@ import { ref, onMounted, watch, computed } from 'vue'
 import BaseButton from '../ui/BaseButton.vue'
 import PrimaryButton from '../ui/PrimaryButton.vue'
 import CertificationEditor from './CertificationEditor.vue'
+import { useToast } from '@/composables/useToast'
 
 const props = defineProps({
   documentoId: { type: Number, required: true },
@@ -117,8 +118,10 @@ const props = defineProps({
   initialMotivoId: { type: [Number, null], required: false, default: null },
 })
 
+const { success, error, warning } = useToast()
+
 const loading = ref(false)
-const error = ref('')
+const loadError = ref('')
 const pdfUrl = ref('')
 const streamBase = ref('')
 const watermarkHash = ref('')
@@ -175,7 +178,7 @@ const permissions = computed(() => {
 
 async function load () {
   loading.value = true
-  error.value = ''
+  loadError.value = ''
   try {
     const rw = await fetch('/api/wm-context', {
       credentials: 'include',
@@ -207,7 +210,7 @@ async function load () {
 
     watermarkHash.value = meta?.watermark?.custodia_hash || ''
   } catch (e) {
-    error.value = 'No se pudo cargar el documento: ' + (e?.message || e)
+    loadError.value = 'No se pudo cargar el documento: ' + (e?.message || e)
   } finally {
     loading.value = false
   }
@@ -226,10 +229,10 @@ async function toggleHold() {
         headers: props.headers,
       })
       if (!r.ok) throw new Error(await r.text())
-      alert('Retención Legal levantada correctamente.')
+      success('Retención Legal levantada', 'El bloqueo ha sido removido correctamente')
       load() // Recargar para actualizar estado
     } catch (e) {
-      alert('Error al levantar bloqueo: ' + e.message)
+      error('Error al levantar bloqueo', e.message)
     }
   } else {
     // Activar hold
@@ -246,19 +249,17 @@ async function toggleHold() {
         body: JSON.stringify({ motivo })
       })
       if (!r.ok) throw new Error(await r.text())
-      alert('Retención Legal activada correctamente.')
+      success('Retención Legal activada', 'El documento ha sido bloqueado correctamente')
       load() // Recargar para actualizar estado
     } catch (e) {
-      alert('Error al activar bloqueo: ' + e.message)
+      error('Error al activar bloqueo', e.message)
     }
   }
 }
 
 function ensureMotivo () {
   if (!motivoId.value) {
-    alert(
-      'No se recibió un motivo de acceso. Cierre el visor y vuelva a abrir seleccionando un motivo.',
-    )
+    warning('Motivo de acceso requerido', 'Cierre el visor y vuelva a abrir seleccionando un motivo')
     return false
   }
   return true

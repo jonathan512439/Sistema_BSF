@@ -5,6 +5,7 @@ namespace App\Http\Controllers;
 use App\Models\Documento;
 use App\Models\DocumentoArchivo;
 use App\Models\DocumentoCampo;
+use App\Models\DocumentoVersion;
 use App\Services\AuditLedgerService;
 use App\Services\OcrClient;
 use Illuminate\Http\Request;
@@ -615,6 +616,73 @@ class DocumentoController extends Controller
         ]);
     }
 
+    // ------- Listar documentos eliminados -------
+    public function eliminados(Request $request)
+    {
+        try {
+            $actor = $this->resolveActor($request);
+
+            // Solo archivistas y admins pueden ver eliminados
+            // En un sistema real, verificarías permisos aquí
+
+            $documentos = Documento::onlyTrashed()
+                ->with([
+                    'tipoDocumento:id,nombre',
+                    'seccion:id,nombre'
+                ])
+                ->select([
+                    'id',
+                    'titulo',
+                    'tipo_documento_id',
+                    'seccion_id',
+                    'estado',
+                    'deleted_at',
+                    'deleted_by',
+                    'delete_reason',
+                    'created_at'
+                ])
+                ->orderBy('deleted_at', 'desc')
+                ->get()
+                ->map(function ($doc) {
+                    return [
+                        'id' => $doc->id,
+                        'titulo' => $doc->titulo,
+                        'tipo_documento_id' => $doc->tipo_documento_id,
+                        'tipo_documento_nombre' => $doc->tipoDocumento?->nombre,
+                        'seccion_id' => $doc->seccion_id,
+                        'seccion_nombre' => $doc->seccion?->nombre,
+                        'estado' => $doc->estado,
+                        'deleted_at' => $doc->deleted_at,
+                        'deleted_by' => $doc->deleted_by,
+                        'deleted_by_name' => $this->getUserName($doc->deleted_by),
+                        'delete_reason' => $doc->delete_reason,
+                        'created_at' => $doc->created_at,
+                    ];
+                });
+
+            return response()->json([
+                'ok' => true,
+                'documentos' => $documentos,
+                'total' => $documentos->count()
+            ]);
+
+        } catch (\Throwable $e) {
+            Log::error('Error al listar eliminados: ' . $e->getMessage());
+            return response()->json([
+                'ok' => false,
+                'message' => 'Error al cargar documentos eliminados'
+            ], 500);
+        }
+    }
+
+    private function getUserName($userId)
+    {
+        if (!$userId)
+            return 'Sistema';
+        $user = \App\Models\User::find($userId);
+        return $user ? $user->name : "Usuario #{$userId}";
+    }
+
     // ------- Restaurar desde soft-delete -------
     public function restaurar(Documento $documento, Request $request)
     {
@@ -745,7 +813,53 @@ class DocumentoController extends Controller
                 'sha256' => $sha256,
                 'created_at' => now(),
                 'updated_at' => now(),
-            ]);
+            ])
+
+            ;
+
+            // CREAR VERSIÓN INICIAL AUTOMÁTICAMENTE
+            // CRÍTICO: Todo documento nuevo debe tener una versión 1 en documento_versiones
+            try {
+                $versionService = app(\App\Services\DocumentVersionService::class);
+                $absolutePath = Storage::disk('local')->path($relPath);
+
+                // Obtener el DocumentoArchivo recién creado
+                $archivo = DocumentoArchivo::where('documento_id', $doc->id)
+                    ->where('version', 1)
+                    ->firstOrFail();
+
+                $versionService->crearVersionInicial(
+                    documento: $doc,
+                    archivo: $archivo,
+                    rutaAbsoluta: $absolutePath,
+                    userId: $request->user()?->id
+                );
+
+                \Log::info("[UPLOAD] Versión inicial V1 creada para documento {$doc->id}");
+
+            } catch (\Throwable $e) {
+                // Si falla la creación de versión, revertir todo el upload
+                \Log::error("[UPLOAD] Error crítico al crear versión inicial: " . $e->getMessage(), [
+                    'documento_id' => $doc->id,
+                    'trace' => $e->getTraceAsString()
+                ]);
+
+                // Limpiar: eliminar archivo físico y registros de BD
+                try {
+                    Storage::disk('local')->delete($relPath);
+                    DocumentoArchivo::where('documento_id', $doc->id)->delete();
+                    $doc->delete();
+                } catch (\Throwable $cleanupError) {
+                    \Log::error("[UPLOAD] Error en limpieza después de fallo: " . $cleanupError->getMessage());
+                }
+
+                return response()->json([
+                    'ok' => false,
+                    'error' => 'VERSION_CREATE_FAIL',
+                    'message' => 'Error al crear versión inicial del documento. El upload fue revertido.',
+                    'details' => $e->getMessage(),
+                ], 500);
+            }
 
             // PROCESAMIENTO OCR: Intenta extraer texto del PDF automáticamente
             // NOTA: Este proceso puede tardar varios minutos dependiendo del tamaño del PDF
@@ -1212,14 +1326,16 @@ class DocumentoController extends Controller
             }
         }
 
-        $archivo = DocumentoArchivo::where('documento_id', $documento->id)
-            ->orderByDesc('version')
+        // Obtener la versión actual del documento
+        $versionActual = DocumentoVersion::where('documento_id', $documento->id)
+            ->where('es_version_actual', true)
             ->first();
 
-        if (!$archivo || !$archivo->ruta_relativa) {
+        if (!$versionActual || !$versionActual->archivo_path) {
             return response()->json(['message' => 'Archivo no encontrado'], 404);
         }
-        if (!Storage::disk('local')->exists($archivo->ruta_relativa)) {
+
+        if (!Storage::disk('local')->exists($versionActual->archivo_path)) {
             return response()->json(['message' => 'Archivo no disponible'], 404);
         }
 
@@ -1290,8 +1406,8 @@ class DocumentoController extends Controller
             }
         }
 
-        $absolute = Storage::disk('local')->path($archivo->ruta_relativa);
-        $filename = basename($absolute) ?: ('documento-' . $documento->id . '.pdf');
+        $absolute = Storage::disk('local')->path($versionActual->archivo_path);
+        $filename = $versionActual->archivo_nombre ?: ('documento-' . $documento->id . '.pdf');
 
         if ($accion === 'download') {
             return response()->download($absolute, $filename, ['Content-Type' => 'application/pdf']);
@@ -1383,7 +1499,7 @@ class DocumentoController extends Controller
                 // Auditoría
                 try {
                     $this->audit->append(
-                        evento: 'documento.validar',
+                        evento: 'documento.validated',
                         actorId: $actor?->id,
                         objetoTipo: 'documento',
                         objetoId: $documento->id,
@@ -1456,7 +1572,7 @@ class DocumentoController extends Controller
 
             try {
                 $this->audit->append(
-                    evento: 'documento.sellar',
+                    evento: 'documento.sealed',
                     actorId: (int) $actor->id,
                     objetoTipo: 'documento',
                     objetoId: $documento->id,

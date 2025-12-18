@@ -52,7 +52,7 @@
 
       <div class="config-actions">
         <button @click="generateReport" class="btn-generate" :disabled="generating">
-          {{ generating ? '⏳ Generando...' : '📥 Generar Reporte' }}
+          {{ generating ? 'Generando...' : 'Generar Reporte' }}
         </button>
       </div>
     </div>
@@ -67,7 +67,7 @@
             <span class="report-date">{{ formatDate(report.created_at) }}</span>
           </div>
           <button @click="downloadReport(report)" class="btn-download">
-            ⬇️ Descargar
+            Descargar
           </button>
         </div>
         <div v-if="!recentReports.length" class="empty-state">
@@ -80,6 +80,7 @@
 
 <script setup>
 import { ref, computed } from 'vue'
+import { useToast } from '@/composables/useToast'
 
 const props = defineProps({
   headers: {
@@ -87,6 +88,8 @@ const props = defineProps({
     required: true
   }
 })
+
+const { success, error } = useToast()
 
 const selectedReport = ref(null)
 const generating = ref(false)
@@ -103,31 +106,31 @@ const reportTypes = [
     id: 'by-status',
     title: 'Documentos por Estado',
     description: 'Distribución de documentos según su estado actual',
-    icon: '📊'
+    icon: ''
   },
   {
     id: 'by-user',
     title: 'Actividad por Usuario',
     description: 'Resumen de acciones realizadas por cada usuario',
-    icon: '👤'
+    icon: ''
   },
   {
     id: 'confidential',
     title: 'Documentos Confidenciales',
     description: 'Listado completo de documentos marcados como confidenciales',
-    icon: '🔒'
+    icon: ''
   },
   {
     id: 'by-section',
     title: 'Distribución por Sección',
     description: 'Cantidad de documentos por sección y subsección',
-    icon: '📁'
+    icon: ''
   },
   {
     id: 'audit-summary',
     title: 'Resumen de Auditoría',
     description: 'Consolidado de movimientos en el sistema',
-    icon: '🔍'
+    icon: ''
   }
 ]
 
@@ -174,9 +177,9 @@ async function generateReport() {
     link.click()
     URL.revokeObjectURL(url)
     
-    alert('✅ Reporte generado exitosamente')
+    success('Reporte generado', `Reporte ${selectedReport.value.title} descargado exitosamente`)
   } catch (e) {
-    alert(`❌ Error al generar reporte: ${e.message}`)
+    error('Error al generar reporte', e.message || 'No se pudo conectar con el servidor')
   } finally {
     generating.value = false
   }

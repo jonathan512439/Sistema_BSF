@@ -241,6 +241,13 @@
         <!-- Action Buttons -->
         <div class="action-buttons">
           <button 
+            @click="verHistorialVersiones" 
+            class="btn-action btn-secondary"
+            title="Ver historial de versiones"
+          >
+             Historial
+          </button>
+          <button 
             v-if="can('doc.edit')" 
             @click="showEditModal = true" 
             class="btn-action btn-secondary"
@@ -270,7 +277,13 @@
           >
              Sellar Custodia
           </button>
-          
+          <button 
+  v-if="puedeEliminar && can('doc.delete')"
+  @click="showDeleteModal = true"
+  class="btn-action btn-danger"
+>
+  Eliminar
+</button>
         </div>
       </div>
     </transition>
@@ -482,7 +495,8 @@
         </div>
         
         <p class="modal-warning">
-          ⚠️ Esta acción realiza un borrado lógico. El documento puede ser restaurado por un administrador.
+          ⚠️ <strong>Borrado Lógico:</strong> El documento NO se eliminará permanentemente. 
+          Podrá ser restaurado desde el módulo de "Documentos Eliminados".
         </p>
         
         <div class="modal-actions">
@@ -512,6 +526,7 @@
 
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useRouter } from 'vue-router'
 import { useToast } from '@/composables/useToast'
 import BaseModal from '../ui/BaseModal.vue'
 import DocumentEditModal from './DocumentEditModal.vue'
@@ -525,6 +540,8 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['view', 'validate', 'seal', 'delete', 'ocr'])
+
+const router = useRouter()
 
 const open = ref(true) // Siempre abierto
 const det = ref({})
@@ -845,7 +862,7 @@ async function handleDelete() {
       return
     }
     
-    success('Documento Eliminado', result.message || 'El documento ha sido eliminado correctamente')
+    success('Documento Eliminado', 'El documento ha sido eliminado correctamente y puede ser restaurado desde "Documentos Eliminados".')
     showDeleteModal.value = false
     deleteReason.value = ''
     emit('refresh') // Notificar al padre para refrescar la lista
@@ -887,6 +904,10 @@ function getConfidenceClass(conf) {
   if (num >= 90) return 'conf-high'
   if (num >= 70) return 'conf-medium'
   return 'conf-low'
+}
+
+function verHistorialVersiones() {
+  router.push(`/documentos/${props.doc.id}/versiones`)
 }
 
 async function loadDetails() {

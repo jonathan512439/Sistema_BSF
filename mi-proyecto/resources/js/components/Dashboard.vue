@@ -442,7 +442,7 @@ function navigateToTipos() {
     font-size: 1.75rem;
   }
   
-  . header-subtitle {
+  .header-subtitle {
     font-size: 1rem;
   }
   

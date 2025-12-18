@@ -1,0 +1,9 @@
+-- AGREGAR ANTES DE LÍNEA 149 en routes/web.php:
+
+        // === VERSIONADO DE DOCUMENTOS ===
+        // Listar versiones de un documento
+        Route::get('/documentos/{id}/versiones', [\App\Http\Controllers\DocumentoVersionController::class, 'index'])->name('versiones.index');
+        
+        // Crear nueva versión (reemplazar PDF completo)
+        Route::post('/documentos/{id}/versiones', [\App\Http\Controllers\DocumentoVersionController::class, 'store'])->name('versiones.store');
+        

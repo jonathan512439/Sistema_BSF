@@ -33,6 +33,10 @@ class PDFGeneratorService
         string $orientation = 'portrait',
         int $quality = 85
     ): string {
+        // SOLUCIÓN: Aumentar memoria a 2GB
+        ini_set('memory_limit', '2048M');
+        ini_set('max_execution_time', '600');
+
         // Crear PDF
         $pdf = new \FPDF($orientation, 'mm', $paperSize);
         $pdf->SetAutoPageBreak(false);
@@ -55,27 +59,39 @@ class PDFGeneratorService
             // Redimensionar para ajustar al papel manteniendo aspect ratio
             $image = $this->resizeToFit($image, $dimensions['width'], $dimensions['height']);
 
+            // OPTIMIZACIÓN: Comprimir agresivamente (60-70%)
+            $optimizedQuality = max(60, min(70, $quality));
+
             // Guardar temporalmente como JPEG
             $tempPath = storage_path('app/temp/pdf_gen_' . uniqid() . '_' . $idx . '.jpg');
             $this->ensureTempDirectory();
-            $image->toJpeg($quality)->save($tempPath);
+            $image->toJpeg($optimizedQuality)->save($tempPath);
 
             // Agregar página al PDF
             $pdf->AddPage();
 
-            // Centrar imagen en la página
+            // Centrar imagen en la página (USAR 150 DPI en lugar de 96)
             $imgInfo = getimagesize($tempPath);
-            $imgWidthMm = ($imgInfo[0] * 25.4) / 96; // Convertir px a mm (96 DPI)
-            $imgHeightMm = ($imgInfo[1] * 25.4) / 96;
+            $imgWidthMm = ($imgInfo[0] * 25.4) / 150; // 150 DPI = menos memoria
+            $imgHeightMm = ($imgInfo[1] * 25.4) / 150;
 
             $x = ($dimensions['width'] - $imgWidthMm) / 2;
             $y = ($dimensions['height'] - $imgHeightMm) / 2;
 
             $pdf->Image($tempPath, $x, $y, $imgWidthMm, $imgHeightMm);
 
-            // Limpiar archivo temporal
+            // CRÍTICO: Limpiar archivo temporal y liberar memoria
             @unlink($tempPath);
+            unset($image);
+
+            // Garbage collection cada 2 imágenes
+            if (($idx + 1) % 2 === 0) {
+                gc_collect_cycles();
+            }
         }
+
+        // CRÍTICO: Liberar memoria final
+        gc_collect_cycles();
 
         // Guardar PDF
         $pdfFilename = 'generated_' . Str::random(16) . '.pdf';

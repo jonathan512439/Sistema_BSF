@@ -78,7 +78,7 @@
         </div>
         
         <button @click="changePassword" class="btn-save" :disabled="!passwordsValid">
-          🔒 Cambiar Contraseña
+          Cambiar Contraseña
         </button>
       </div>
 
@@ -190,7 +190,7 @@ function getRoleName(role) {
 
 async function changePassword() {
   if (!passwordsValid.value) {
-    alert('⚠️ Por favor verifica que las contraseñas coincidan y tengan al menos 8 caracteres')
+    warning('Validación de contraseña', 'Por favor verifica que las contraseñas coincidan y tengan al menos 8 caracteres')
     return
   }
   
@@ -213,10 +213,10 @@ async function changePassword() {
       throw new Error(data.message || 'Error al cambiar contraseña')
     }
     
-    alert('✅ Contraseña cambiada exitosamente')
+    success('Contraseña actualizada', 'Tu contraseña ha sido cambiada exitosamente')
     passwords.value = { current: '', new: '', confirm: '' }
   } catch (e) {
-    alert(`❌ ${e.message}`)
+    error('Error al cambiar contraseña', e.message)
   }
 }
 </script>

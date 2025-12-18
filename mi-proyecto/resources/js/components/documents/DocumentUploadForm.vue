@@ -487,12 +487,70 @@ function fillFormWithOCR(data) {
     fallidos.push('Título')
   }
 
-  // Descripción (del full_text)
-  if (data.full_text && data.full_text.trim()) {
-    form.value.descripcion = data.full_text.substring(0, 500)
+  // Descripción (usar la generada por OCR, o fallback a full_text)
+  if (campos.descripcion) {
+    form.value.descripcion = campos.descripcion
+    rellenados.push('Descripción')
+  } else if (data.full_text && data.full_text.trim()) {
+    form.value.descripcion = data.full_text.substring(0, 200)
     rellenados.push('Descripción')
   } else {
     fallidos.push('Descripción')
+  }
+
+  // Tipo de Documento (con matching fuzzy)
+  if (campos.tipo_documento) {
+    const tipoMatch = findBestMatch(
+      campos.tipo_documento,
+      props.catalogs.tipos_documento || [],
+      'nombre'
+    )
+    if (tipoMatch) {
+      form.value.tipo_documento_id = tipoMatch.id
+      rellenados.push(`Tipo (${tipoMatch.nombre})`)
+    } else {
+      fallidos.push('Tipo')
+    }
+  } else {
+    fallidos.push('Tipo')
+  }
+
+  // Sección (con matching fuzzy)
+  if (campos.seccion) {
+    const seccionMatch = findBestMatch(
+      campos.seccion,
+      props.catalogs.secciones || [],
+      'nombre'
+    )
+    if (seccionMatch) {
+      form.value.seccion_id = seccionMatch.id
+      rellenados.push(`Sección (${seccionMatch.nombre})`)
+      
+      // Subsección (solo si hay sección)
+      if (campos.subseccion) {
+        // Filtrar subsecciones de esta sección
+        const subseccionesDisponibles = (props.catalogs.subsecciones || []).filter(
+          sub => sub.seccion_id === seccionMatch.id
+        )
+        
+        const subseccionMatch = findBestMatch(
+          campos.subseccion,
+          subseccionesDisponibles,
+          'nombre'
+        )
+        
+        if (subseccionMatch) {
+          form.value.subseccion_id = subseccionMatch.id
+          rellenados.push(`Subsección (${subseccionMatch.nombre})`)
+        } else {
+          fallidos.push('Subsección')
+        }
+      }
+    } else {
+      fallidos.push('Sección')
+    }
+  } else {
+    fallidos.push('Sección')
   }
 
   // Fecha documento
@@ -520,7 +578,7 @@ function fillFormWithOCR(data) {
     )
     if (gestiónMatch) {
       form.value.gestion_id = gestiónMatch.id
-      rellenados.push('Gestión')
+      rellenados.push(`Gestión (${gestiónMatch.anio})`)
     } else {
       fallidos.push('Gestión')
     }
@@ -529,6 +587,74 @@ function fillFormWithOCR(data) {
   }
 
   return { rellenados, fallidos }
+}
+
+/**
+ * Encuentra la mejor coincidencia usando fuzzy matching simple.
+ * @param {string} query - Texto a buscar
+ * @param {Array} options - Array de objetos con opciones
+ * @param {string} field - Campo del objeto a comparar
+ * @returns {Object|null} - Mejor coincidencia o null
+ */
+function findBestMatch(query, options, field) {
+  if (!query || !options || options.length === 0) return null
+  
+  const queryLower = query.toLowerCase().trim()
+  
+  // 1. Coincidencia exacta
+  let exactMatch = options.find(opt => 
+    opt[field]?.toLowerCase().trim() === queryLower
+  )
+  if (exactMatch) return exactMatch
+  
+  // 2. Coincidencia por inclusión (query contiene el nombre del catálogo)
+  let inclusionMatch = options.find(opt => {
+    const optName = opt[field]?.toLowerCase().trim()
+    return optName && queryLower.includes(optName)
+  })
+  if (inclusionMatch) return inclusionMatch
+  
+  // 3. Coincidencia inversa (nombre del catálogo contiene query)
+  let reverseMatch = options.find(opt => {
+    const optName = opt[field]?.toLowerCase().trim()
+    return optName && optName.includes(queryLower)
+  })
+  if (reverseMatch) return reverseMatch
+  
+  // 4. Matching por similitud de palabras
+  const scores = options.map(opt => {
+    const optName = opt[field]?.toLowerCase().trim() || ''
+    const score = calculateSimilarity(queryLower, optName)
+    return { option: opt, score }
+  })
+  
+  // Ordenar por score y retornar el mejor si es > 0.5
+  scores.sort((a, b) => b.score - a.score)
+  if (scores[0] && scores[0].score > 0.5) {
+    return scores[0].option
+  }
+  
+  return null
+}
+
+/**
+ * Calcula similitud simple entre dos strings (0-1).
+ * Basado en palabras en común.
+ */
+function calculateSimilarity(str1, str2) {
+  const words1 = str1.split(/\s+/).filter(w => w.length > 2)
+  const words2 = str2.split(/\s+/).filter(w => w.length > 2)
+  
+  if (words1.length === 0 || words2.length === 0) return 0
+  
+  let commonWords = 0
+  for (const word of words1) {
+    if (words2.some(w => w.includes(word) || word.includes(w))) {
+      commonWords++
+    }
+  }
+  
+  return commonWords / Math.max(words1.length, words2.length)
 }
 
 function parseDate(dateStr) {

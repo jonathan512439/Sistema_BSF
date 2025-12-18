@@ -49,9 +49,9 @@
         </div>
       </div>
 
-      <!-- Grids de Distribución -->
+      <!-- Grids de Distribución 
       <div class="distribution-grid">
-        <!-- Estados -->
+       
         <div class="info-card">
           <div class="card-header">
             <h3 class="card-title">Distribución por Estado</h3>
@@ -68,9 +68,9 @@
               No hay datos disponibles
             </div>
           </div>
-        </div>
+        </div> 
 
-        <!-- Secciones -->
+       
         <div class="info-card">
           <div class="card-header">
             <h3 class="card-title">Por Sección</h3>
@@ -86,7 +86,7 @@
           </div>
         </div>
 
-        <!-- Tipos -->
+       
         <div class="info-card">
           <div class="card-header">
             <h3 class="card-title">Por Tipo de Documento</h3>
@@ -101,7 +101,7 @@
             </div>
           </div>
         </div>
-      </div>
+      </div> -->
 
       <!-- Actividad Reciente -->
       <div class="activity-card">
@@ -120,7 +120,7 @@
                   {{ formatEstado(doc.estado) }}
                 </span>
                 <span v-if="doc.is_confidential" class="badge-confidential">
-                  🔒 Confidencial
+                  Confidencial
                 </span>
               </div>
             </div>

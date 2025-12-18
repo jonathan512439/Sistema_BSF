@@ -39,6 +39,19 @@ const routes = [
         meta: { requiresAuth: true }
     },
     {
+        path: '/documentos/:id/versiones',
+        name: 'document-versions',
+        component: () => import('../components/views/DocumentVersionHistoryView.vue'),
+        props: true,
+        meta: { requiresAuth: true }
+    },
+    {
+        path: '/documentos-eliminados',
+        name: 'deleted-documents',
+        component: () => import('../components/views/DeletedDocumentsView.vue'),
+        meta: { requiresAuth: true }
+    },
+    {
         path: '/',
         redirect: '/dashboard'
     }

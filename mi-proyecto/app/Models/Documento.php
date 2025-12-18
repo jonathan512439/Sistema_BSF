@@ -11,12 +11,26 @@ class Documento extends Model
 
     protected $table = 'documentos';
     protected $guarded = [];
+
+    protected $dates = ['deleted_at'];
     public $timestamps = false;
 
     // Relación con archivos
     public function archivos()
     {
         return $this->hasMany(DocumentoArchivo::class, 'documento_id');
+    }
+
+    // Relación con tipo de documento
+    public function tipoDocumento()
+    {
+        return $this->belongsTo(\App\Models\TipoDocumento::class, 'tipo_documento_id');
+    }
+
+    // Relación con sección
+    public function seccion()
+    {
+        return $this->belongsTo(\App\Models\Seccion::class, 'seccion_id');
     }
 
     // Relación con el archivo principal (versión 1)
@@ -44,6 +58,24 @@ class Documento extends Model
     {
         return $this->hasMany(DocumentoUbicacion::class, 'documento_id')
             ->orderBy('fecha_asignacion', 'desc');
+    }
+
+    /**
+     * Todas las versiones de este documento
+     */
+    public function versiones()
+    {
+        return $this->hasMany(DocumentoVersion::class, 'documento_id')
+            ->orderBy('version_numero', 'desc');
+    }
+
+    /**
+     * Versión actualmente activa
+     */
+    public function versionActualCompleta()
+    {
+        return $this->hasOne(DocumentoVersion::class, 'documento_id')
+            ->where('es_version_actual', true);
     }
 
 }

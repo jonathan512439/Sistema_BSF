@@ -26,13 +26,13 @@ class GeneratePDFRequest extends FormRequest
                 'required',
                 'array',
                 'min:1',
-                'max:50', // Máximo 50 imágenes
+                // SIN LÍMITE de páginas - permitir todas las necesarias
             ],
             'images.*' => [
                 'required',
                 'image',
                 'mimes:jpeg,jpg,png',
-                'max:10240', // 10MB por imagen
+                // SIN LÍMITE de tamaño por imagen
             ],
             'paper_size' => [
                 'sometimes',
@@ -66,11 +66,11 @@ class GeneratePDFRequest extends FormRequest
     {
         return [
             'images.required' => 'Debe proporcionar al menos una imagen',
-            'images.min' => 'Debe proporcionar al menos una imagen',
-            'images.max' => 'Máximo 50 imágenes permitidas',
+            'images.min' => 'Debe proporcionar al menos  una imagen',
+            // Límite de imágenes removido
             'images.*.image' => 'Todos los archivos deben ser imágenes',
             'images.*.mimes' => 'Solo se permiten imágenes JPG, JPEG o PNG',
-            'images.*.max' => 'Cada imagen debe pesar máximo 10MB',
+            // Límite de tamaño removido
             'paper_size.in' => 'Tamaño de papel no válido',
             'orientation.in' => 'Orientación no válida',
             'quality.integer' => 'La calidad debe ser un número',

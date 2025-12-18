@@ -93,10 +93,27 @@ function getRoleName(role) {
 
 onMounted(async () => {
   try {
-    const response = await fetch('https://api.ipify.org?format=json')
-    const data = await response.json()
-    userIP.value = data.ip
+    // Obtener IP real desde el backend de Laravel
+    const response = await fetch('/api/wm-context', {
+      credentials: 'include',
+      headers: {
+        'Accept': 'application/json',
+        'X-Requested-With': 'XMLHttpRequest'
+      }
+    })
+    
+    if (response.ok) {
+      const data = await response.json()
+      // El endpoint wm-context devuelve { user, email, ip, ts }
+      userIP.value = data.ip || 'No disponible'
+    } else {
+      // Fallback: intentar con servicio externo
+      const fallbackResponse = await fetch('https://api.ipify.org?format=json')
+      const fallbackData = await fallbackResponse.json()
+      userIP.value = fallbackData.ip
+    }
   } catch (e) {
+    console.error('Error al obtener IP:', e)
     userIP.value = 'No disponible'
   }
 })

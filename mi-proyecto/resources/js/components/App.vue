@@ -12,6 +12,7 @@ import SettingsView from './views/SettingsView.vue'
 import UserManagementView from './views/UserManagementView.vue'
 import UbicacionesView from './views/UbicacionesView.vue'
 import AnchorDashboard from './audit/AnchorDashboard.vue'
+import DeletedDocumentsView from './views/DeletedDocumentsView.vue'
 import ToastContainer from './ui/ToastContainer.vue'
 import { useToast } from '@/composables/useToast'
 
@@ -61,7 +62,8 @@ const currentViewComponent = computed(() => {
     'certifications': CertificationsView,
     'reports': ReportsView,
     'settings': SettingsView,
-    'users': UserManagementView
+    'users': UserManagementView,
+    'deleted': DeletedDocumentsView
   }
   return components[currentView.value] || DashboardView
 })

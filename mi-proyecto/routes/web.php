@@ -110,6 +110,7 @@ Route::middleware(['auth', 'force.password', 'role:archivist'])
         Route::post('/documentos/{documento}/restaurar', [\App\Http\Controllers\DocumentoController::class, 'restaurar'])->name('restore');
         Route::post('/documentos/{documento}/ocr', [\App\Http\Controllers\DocumentoController::class, 'procesarOcr'])->name('ocr');
         Route::post('/documentos/{documento}/ubicacion', [\App\Http\Controllers\DocumentoController::class, 'moverUbicacion'])->name('ubicacion');
+        Route::get('/documentos/eliminados', [\App\Http\Controllers\DocumentoController::class, 'eliminados'])->name('eliminados.index');
 
         // OCR Preview (antes de subir documento)
         Route::post('/ocr/preview', [\App\Http\Controllers\DocumentoController::class, 'ocrPreview'])->name('ocr.preview');
@@ -145,6 +146,14 @@ Route::middleware(['auth', 'force.password', 'role:reader,archivist'])
         // Thumbnail DISABLED - thumbnails no funcionan correctamente
         // Route::get('/documentos/{documento}/thumbnail', [\App\Http\Controllers\DocumentoController::class, 'getThumbnail'])->name('thumbnail');
     
+        // Listar versiones de un documento
+        Route::get('/documentos/{id}/versiones', [\App\Http\Controllers\DocumentoVersionController::class, 'index'])->name('versiones.index');
+
+        // Crear nueva versión (reemplazar PDF completo)
+        Route::post('/documentos/{id}/versiones', [\App\Http\Controllers\DocumentoVersionController::class, 'store'])->name('versiones.store');
+
+        // Agregar paginas a version
+        Route::post('/documentos/{id}/versiones/agregar-paginas', [\App\Http\Controllers\DocumentoVersionController::class, 'agregarPaginas'])->name('versiones.agregar_paginas');
         // Ver detalle de documento (filtrado automático por confidencialidad)
         Route::get('/documentos/{documento}', [\App\Http\Controllers\DocumentoController::class, 'show'])
             ->middleware(\App\Http\Middleware\AccessLog::class)

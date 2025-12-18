@@ -157,67 +157,34 @@ async function generatePDF() {
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
     const filename = `BSF_Documento_${timestamp}.pdf`
     
-    // 1. GUARDAR ARCHIVO (con diálogo de ubicación)
-    let savedPath = null
-    try {
-      // Intentar usar File System Access API (Chrome/Edge moderno)
-      if ('showSaveFilePicker' in window) {
-        const handle = await window.showSaveFilePicker({
-          suggestedName: filename,
-          types: [{
-            description: 'Documento PDF',
-            accept: { 'application/pdf': ['.pdf'] }
-          }]
-        })
-        const writable = await handle.createWritable()
-        await writable.write(blob)
-        await writable.close()
-        savedPath = handle.name // Solo nombre, no ruta completa por seguridad
-        
-        success('✅ PDF Guardado', `El archivo "${savedPath}" se guardó correctamente`)
-      } else {
-        // Fallback: descarga tradicional
-        const url = window.URL.createObjectURL(blob)
-        const a = document.createElement('a')
-        a.href = url
-        a.download = filename
-        a.style.display = 'none'
-        document.body.appendChild(a)
-        a.click()
-        document.body.removeChild(a)
-        window.URL.revokeObjectURL(url)
-        savedPath = 'Descargas'
-        
-        success('✅ PDF Descargado', `El archivo se guardó en la carpeta "${savedPath}"`)
-      }
-    } catch (saveError) {
-      // Usuario canceló o error al guardar
-      if (saveError.name === 'AbortError') {
-        showError('Guardado cancelado', 'No se guardó el archivo en disco')
-      } else {
-        console.error('Error guardando archivo:', saveError)
-        showError('Error al guardar', saveError.message)
-      }
-      // Continuar de todas formas para adjuntar al formulario
-    }
+    // Descargar archivo (método compatible sin user gesture)
+    const url = window.URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url
+    a.download = filename
+    a.style.display = 'none'
+    document.body.appendChild(a)
+    a.click()
+    document.body.removeChild(a)
+    window.URL.revokeObjectURL(url)
     
-    // 2. CREAR FILE OBJECT para adjuntar al formulario
+    // Crear FILE OBJECT para adjuntar al formulario
     const pdfFile = new File([blob], filename, {
       type: 'application/pdf',
       lastModified: Date.now()
     })
     
-    // 3. NOTIFICAR ÉXITO con detalles
+    // Notificar éxito con detalles
     const sizeKB = (blob.size / 1024).toFixed(2)
     success(
-      '📎 PDF Adjuntado',
-      `${images.value.length} páginas • ${sizeKB} KB • Listo para subir`
+      '📎 PDF Generado',
+      `${images.value.length} páginas • ${sizeKB} KB • Descargado y listo para subir`
     )
     
-    // 4. EMITIR para que se adjunte al formulario
+    // EMITIR para que se adjunte al formulario
     emit('pdf-generated', pdfFile)
     
-    // 5. CERRAR modal
+    // CERRAR modal
     handleClose()
     
   } catch (err) {
