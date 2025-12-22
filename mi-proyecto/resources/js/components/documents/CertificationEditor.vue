@@ -3,15 +3,16 @@
     <div class="editor-container">
       <!-- Header -->
       <div class="editor-header">
-        <h2> Editor de Certificación</h2>
+        <h2>Editor de Certificación</h2>
         <p>Complete los campos y luego imprima la certificación</p>
       </div>
 
       <!-- Editor Panel + Preview -->
       <div class="editor-body">
-        <!-- Left Panel: Form Fields -->
+        <!-- Left Panel: Quick Fields -->
         <div class="editor-form">
-          <h3>Datos de la Certificación</h3>
+          <h3>📝 Campos Rápidos</h3>
+          <p class="help-text">Complete los campos básicos o edite directamente en el documento →</p>
           
           <div class="form-group">
             <label>Número de Certificación</label>
@@ -19,14 +20,7 @@
           </div>
 
           <div class="form-group">
-            <label>Texto Introductorio</label>
-            <textarea v-model="certData.textoIntroductorio" rows="4"></textarea>
-          </div>
-
-          <h3>Datos del Personal</h3>
-
-          <div class="form-group">
-            <label>Nombre Completo</label>
+            <label>Nombre del Personal</label>
             <input v-model="certData.nombrePersonal" type="text" placeholder="SR. SGTO. 2DO. NOMBRE APELLIDO" />
           </div>
 
@@ -36,26 +30,9 @@
           </div>
 
           <div class="form-group">
-            <label>Lugar de Expedición CI</label>
+            <label>Lugar de CI</label>
             <input v-model="certData.ciLugar" type="text" placeholder="ORURO" />
           </div>
-
-          <div class="form-group">
-            <label>Fecha de Ingreso</label>
-            <input v-model="certData.fechaIngreso" type="text" placeholder="Según hoja de filiación 1 de abril de 1996" />
-          </div>
-
-          <div class="form-group">
-            <label>Letra / Designación</label>
-            <input v-model="certData.letra" type="text" placeholder="Según Memorándum cite: 055/2024..." />
-          </div>
-
-          <div class="form-group">
-            <label>Último Destino</label>
-            <input v-model="certData.ultimoDestino" type="text" placeholder="Y.P.F.B. ESTACION DE SERVICIO..." />
-          </div>
-
-          <h3>Firma y Validación</h3>
 
           <div class="form-group">
             <label>Fecha de Emisión</label>
@@ -63,40 +40,50 @@
           </div>
 
           <div class="form-group">
-            <label>Elaborado Por (Nombre y Cargo)</label>
+            <label>Elaborado Por</label>
             <input v-model="certData.elaboradoPor" type="text" placeholder="Sgto. My. Nombre Apellido" />
           </div>
 
           <div class="form-group">
-            <label>Cargo del Elaborador</label>
-            <input v-model="certData.cargoElaborador" type="text" placeholder="ENCARGADO DE LA SUB SECCIÓN ARCHIVO - KARDEX" />
+            <label>Cargo Elaborador</label>
+            <input v-model="certData.cargoElaborador" type="text" placeholder="ENCARGADO ARCHIVO - KARDEX" />
           </div>
 
           <div class="form-group">
-            <label>Nombre del Comandante</label>
+            <label>Comandante</label>
             <input v-model="certData.comandante" type="text" placeholder="Cnl. DESP. Nombre Apellido" />
           </div>
 
           <div class="form-group">
-            <label>Cargo del Comandante</label>
+            <label>Cargo Comandante</label>
             <input v-model="certData.cargoComandante" type="text" placeholder="COMANDANTE" />
+          </div>
+
+          <div class="alert-info">
+            💡 <strong>Tip:</strong> Haga clic en cualquier parte del documento para editar directamente el texto
           </div>
         </div>
 
-        <!-- Right Panel: Live Preview -->
+        <!-- Right Panel: Live Preview - FULLY EDITABLE -->
         <div class="preview-panel">
           <div class="preview-header">
-            <h3> Vista Previa</h3>
-            <span class="preview-note">Esta es una representación aproximada</span>
+            <h3>Vista Previa - EDITABLE</h3>
+            <span class="preview-note">Haga clic en cualquier texto para editarlo</span>
           </div>
           
-          <div id="certification-print-area" class="certification-preview">
-            <!-- Encabezado Oficial -->
+          <div 
+            id="certification-print-area" 
+            class="certification-preview" 
+            contenteditable="true"
+            @blur="handleContentChange"
+            spellcheck="false"
+          >
+            <!-- Encabezado Oficial - Logo a la izquierda -->
             <div class="cert-header">
-              <div class="cert-logo">
+              <div class="header-left">
                 <img :src="logoUrl" alt="Logo Policía Boliviana" class="logo-img" />
               </div>
-              <div class="cert-institution">
+              <div class="header-right">
                 <div class="inst-name">POLICÍA BOLIVIANA</div>
                 <div class="inst-dept">COMANDO DEPARTAMENTAL</div>
                 <div class="inst-unit">BATALLÓN DE SEGURIDAD FÍSICA</div>
@@ -127,7 +114,6 @@
                 <li><strong>EL {{ certData.nombrePersonal || '___________' }}</strong> CON N° DE <strong>CI. {{ certData.ci || '______' }}</strong> EXPEDIDO EN <strong>{{ certData.ciLugar || '______' }}</strong> CUMPLIÓ SERVICIOS EN EL BATALLÓN DE SEGURIDAD FÍSICA. DEPENDIENTE DE ACUERDO AL SIGUIENTE DETALLE:</li>
                 <li><strong>INGRESO:</strong> {{ certData.fechaIngreso || '___________' }}</li>
                 <li><strong>LETRA "A":</strong> {{ certData.letra || '___________' }}</li>
-                <li><strong>ÚLTIMO DESTINO:</strong> {{ certData.ultimoDestino || '___________' }}</li>
               </ul>
 
               <p class="cert-closing">Es cuanto se certifica para fines consiguientes.</p>
@@ -167,7 +153,7 @@
           Cancelar
         </button>
         <button @click="printCertification" class="btn-print">
-           Imprimir Certificación
+          Imprimir Certificación
         </button>
       </div>
     </div>
@@ -176,7 +162,6 @@
 
 <script setup>
 import { ref, onMounted } from 'vue'
-import BaseButton from '../ui/BaseButton.vue'
 import { useToast } from '@/composables/useToast'
 
 const { success, error } = useToast()
@@ -202,7 +187,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'printed'])
 
-// Logo URL - Laravel sirve archivos de public/ directamente
+// Logo URL - Laravel sirve archivos de public/ directamente con filtro verde
 const logoUrl = '/assets/logo.png'
 
 // Default values
@@ -214,7 +199,6 @@ const defaultData = {
   ciLugar: 'ORURO',
   fechaIngreso: 'Según hoja de filiación 1 de abril de 1996.',
   letra: 'Según Memorándum Cite: 055/2024 En fecha 09 de enero del 2024, con tiempo de permanencia de 27 años y 9 mes 8 días.',
-  ultimoDestino: '"Y.P.F.B. ESTACION DE SERVICIO ABEL ASCACINUZ", según Memorándum cite N° 413/2023, de fecha 10 de abril de 2023.',
   fechaEmision: new Date().toISOString().split('T')[0],
   elaboradoPor: 'Sgto. My. Alberto Choque Sánchez',
   cargoElaborador: 'ENCARGADO DE LA SUB SECCIÓN ARCHIVO - KARDEX',
@@ -224,9 +208,7 @@ const defaultData = {
 
 // Datos editables de la certificación
 const certData = ref({ ...defaultData })
-
-// Datos originales para detectar cambios
-const originalData = ref(null)
+const editableContent = ref('')
 
 function formatDateSpanish(dateString) {
   if (!dateString) return ''
@@ -240,102 +222,21 @@ function formatDateSpanish(dateString) {
   return `${date.getDate()} de ${months[date.getMonth()]} de ${date.getFullYear()}`
 }
 
-/**
- * Detectar si hubo cambios en los datos
- */
-function hasChanges() {
-  if (!originalData.value) return true // Nueva certificación
-  
-  const current = {
-    numero: certData.value.numero,
-    textoIntroductorio: certData.value.textoIntroductorio,
-    nombrePersonal: certData.value.nombrePersonal,
-    ci: certData.value.ci,
-    ciLugar: certData.value.ciLugar,
-    fechaIngreso: certData.value.fechaIngreso,
-    letra: certData.value.letra,
-    ultimoDestino: certData.value.ultimoDestino,
-    fechaEmision: certData.value.fechaEmision,
-    elaboradoPor: certData.value.elaboradoPor,
-    cargoElaborador: certData.value.cargoElaborador,
-    comandante: certData.value.comandante,
-    cargoComandante: certData.value.cargoComandante
-  }
-  
-  return JSON.stringify(current) !== JSON.stringify(originalData.value)
+function handleContentChange(event) {
+  // Guardar el contenido HTML editado
+  editableContent.value = event.target.innerHTML
 }
 
-/**
- * Guardar o actualizar certificación en la base de datos
- */
-async function saveCertificate() {
-  try {
-    // Si estamos editando y no hay cambios, no guardar
-    if (props.certificationId && !hasChanges()) {
-      console.log('[CERT] No hay cambios, omitiendo guardado')
-      return true
-    }
-    
-    const isUpdate = !!props.certificationId
-    const url = isUpdate 
-      ? `/api/certificaciones/${props.certificationId}` 
-      : '/api/certificaciones'
-    const method = isUpdate ? 'PUT' : 'POST'
-    
-    const payload = {
-      numero_certificacion: certData.value.numero,
-      texto_introduccion: certData.value.textoIntroductorio,
-      nombre_personal: certData.value.nombrePersonal,
-      ci: certData.value.ci,
-      lugar_expedicion: certData.value.ciLugar,
-      fecha_ingreso: certData.value.fechaIngreso,
-      designacion: certData.value.letra,
-      ultimo_destino: certData.value.ultimoDestino,
-      fecha_emision: certData.value.fechaEmision,
-      elaborado_por: certData.value.elaboradoPor,
-      cargo_elaborador: certData.value.cargoElaborador,
-      nombre_comandante: certData.value.comandante,
-      cargo_comandante: certData.value.cargoComandante
-    }
-    
-    // Solo agregardocumento_id si es nueva certificación
-    if (!isUpdate) {
-      payload.documento_id = props.documento.id
-    }
-
-    const response = await fetch(url, {
-      method,
-      headers: {
-        ...props.headers,
-        'Content-Type': 'application/json'
-      },
-      credentials: 'include',
-      body: JSON.stringify(payload)
-    })
-
-    const data = await response.json()
-    
-    if (data.ok) {
-      const message = isUpdate 
-        ? 'Certificación actualizada exitosamente' 
-        : 'Certificación guardada exitosamente'
-      success(message)
-      return true
-    } else {
-      error('Error al guardar certificación', data.message || 'Error desconocido')
-      return false
-    }
-  } catch (err) {
-    console.error('Error al guardar certificación:', err)
-    error('Error al guardar certificación', err.message)
-    return false
+function updatePreview() {
+  // Actualizar la vista previa con los datos del formulario
+  const previewArea = document.getElementById('certification-print-area')
+  if (previewArea && !editableContent.value) {
+    // Solo actualizar si no se ha editado directamente el contenido
+    // El contenido se actualiza reactivamente con Vue
   }
 }
 
 async function printCertification() {
-  // Guardar primero en la BD
-  await saveCertificate()
-  
   // Imprimir
   window.print()
   emit('printed')
@@ -346,24 +247,6 @@ async function printCertification() {
 onMounted(() => {
   if (props.initialData) {
     certData.value = { ...defaultData, ...props.initialData }
-    // Guardar datos originales para detectar cambios
-    if (props.certificationId) {
-      originalData.value = {
-        numero: certData.value.numero,
-        textoIntroductorio: certData.value.textoIntroductorio,
-        nombrePersonal: certData.value.nombrePersonal,
-        ci: certData.value.ci,
-        ciLugar: certData.value.ciLugar,
-        fechaIngreso: certData.value.fechaIngreso,
-        letra: certData.value.letra,
-        ultimoDestino: certData.value.ultimoDestino,
-        fechaEmision: certData.value.fechaEmision,
-        elaboradoPor: certData.value.elaboradoPor,
-        cargoElaborador: certData.value.cargoElaborador,
-        comandante: certData.value.comandante,
-        cargoComandante: certData.value.cargoComandante
-      }
-    }
   }
 })
 </script>
@@ -395,7 +278,7 @@ onMounted(() => {
 }
 
 .editor-header {
-  background: linear-gradient(135deg, #556b2f 0%, #6b8e23 100%);
+  background: linear-gradient(135deg, #2d5016 0%, #3d6b1f 100%);
   color: white;
   padding: 1.5rem 2rem;
   border-radius: 12px 12px 0 0;
@@ -428,10 +311,10 @@ onMounted(() => {
 }
 
 .editor-form h3 {
-  color: #556b2f;
+  color: #2d5016;
   margin: 1.5rem 0 1rem 0;
   font-size: 1.1rem;
-  border-bottom: 2px solid #556b2f;
+  border-bottom: 2px solid #2d5016;
   padding-bottom: 0.5rem;
 }
 
@@ -465,7 +348,7 @@ onMounted(() => {
 .form-group input:focus,
 .form-group textarea:focus {
   outline: none;
-  border-color: #556b2f;
+  border-color: #2d5016;
 }
 
 .form-group textarea {
@@ -510,41 +393,83 @@ onMounted(() => {
   font-family: 'Times New Roman', serif;
   color: #000;
   line-height: 1.6;
+  cursor: text;
+  transition: background 0.2s;
+}
+
+.certification-preview:hover {
+  background: #fffef8;
+}
+
+.certification-preview:focus {
+  outline: 2px solid #2d5016;
+  outline-offset: -2px;
+  background: #fffef8;
+}
+
+.help-text {
+  color: #6b7280;
+  font-size: 0.813rem;
+  margin: 0 0 1rem 0;
+  font-style: italic;
+}
+
+.alert-info {
+  background: #e0f2fe;
+  border-left: 4px solid #0284c7;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+  font-size: 0.813rem;
+  color: #075985;
+  margin-top: 1.5rem;
 }
 
 /* Certification Styles */
 .cert-header {
-  text-align: center;
-  margin-bottom: 2rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #2d5016;
 }
 
-.cert-logo {
-  margin-bottom: 0.5rem;
-  display: flex;
-  justify-content: center;
+.header-left {
+  flex-shrink: 0;
 }
 
 .logo-img {
-  width: 80px;
+  width: 90px;
   height: auto;
-  filter: grayscale(0.3);
+  /* Filtro para hacer el logo verde */
+  filter: brightness(0) saturate(100%) invert(20%) sepia(50%) saturate(1500%) hue-rotate(70deg) brightness(90%) contrast(90%);
 }
 
-.cert-institution {
+.header-right {
+  flex: 1;
   font-size: 0.875rem;
   font-weight: 600;
-  line-height: 1.3;
-  color: #2d3e2b;
+  line-height: 1.4;
+  color: #2d5016;
+  text-align: left;
 }
 
 .inst-name {
   font-size: 1rem;
   font-weight: 700;
+  margin-bottom: 0.25rem;
+}
+
+.inst-dept,
+.inst-unit,
+.inst-location {
+  margin: 0.125rem 0;
 }
 
 .cert-title {
   text-align: center;
   margin: 2rem 0;
+  color: #2d5016;
 }
 
 .cert-title h1 {
@@ -555,9 +480,15 @@ onMounted(() => {
 }
 
 .cert-title h2 {
-  font-size: 1rem;
+  font-size: 1.1rem;
   font-weight: 600;
   margin: 0;
+}
+
+.editable-field {
+  background: #fff9e6;
+  padding: 0 0.5rem;
+  border-radius: 3px;
 }
 
 .cert-intro {
@@ -645,6 +576,53 @@ onMounted(() => {
   margin-top: 2rem;
 }
 
+/* Quick Fields Panel */
+.quick-fields {
+  background: white;
+  margin: 0 1rem 1rem 1rem;
+  padding: 1.5rem;
+  border-radius: 8px;
+}
+
+.quick-fields h3 {
+  color: #2d5016;
+  margin: 0 0 0.5rem 0;
+  font-size: 1rem;
+}
+
+.help-text {
+  color: #6b7280;
+  font-size: 0.813rem;
+  margin: 0 0 1rem 0;
+}
+
+.field-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin-bottom: 0.75rem;
+}
+
+.field-row label {
+  flex: 0 0 150px;
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.875rem;
+}
+
+.field-row input {
+  flex: 1;
+  padding: 0.5rem;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  font-size: 0.875rem;
+}
+
+.field-row input:focus {
+  outline: none;
+  border-color: #2d5016;
+}
+
 /* Actions */
 .editor-actions {
   padding: 1.5rem 2rem;
@@ -677,14 +655,14 @@ onMounted(() => {
 }
 
 .btn-print {
-  background: #556b2f;
+  background: #2d5016;
   color: white;
 }
 
 .btn-print:hover {
-  background: #6b8e23;
+  background: #3d6b1f;
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(85, 107, 47, 0.3);
+  box-shadow: 0 4px 12px rgba(45, 80, 22, 0.3);
 }
 
 /* Print Styles */
@@ -706,6 +684,10 @@ onMounted(() => {
     padding: 2cm;
     background: white;
     font-size: 11pt;
+  }
+  
+  .editable-field {
+    background: transparent !important;
   }
   
   @page {

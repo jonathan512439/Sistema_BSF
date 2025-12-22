@@ -27,6 +27,13 @@ async function loadStats() {
       headers: props.headers
     })
     
+    // Si es 403 (Forbidden), el usuario no tiene permisos (ej: lector)
+    // Simplemente no mostramos nada, sin error
+    if (response.status === 403) {
+      loading.value = false
+      return
+    }
+    
     const data = await response.json()
     
     if (data.ok) {

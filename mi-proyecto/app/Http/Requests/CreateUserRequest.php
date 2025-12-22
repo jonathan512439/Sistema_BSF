@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\Authorization\AuthorizesRequests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use App\Models\User;
@@ -12,8 +11,6 @@ use App\Models\User;
  */
 class CreateUserRequest extends FormRequest
 {
-    use AuthorizesRequests;
-
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -69,15 +66,15 @@ class CreateUserRequest extends FormRequest
             'name.required' => 'El nombre es obligatorio.',
             'name.min' => 'El nombre debe tener al menos 3 caracteres.',
             'name.max' => 'El nombre no puede exceder 191 caracteres.',
-            
+
             'email.required' => 'El email es obligatorio.',
             'email.email' => 'Debe proporcionar un email válido.',
             'email.unique' => 'Este email ya está registrado en el sistema.',
-            
+
             'username.required' => 'El nombre de usuario es obligatorio.',
             'username.min' => 'El username debe tener al menos 3 caracteres.',
             'username.regex' => 'El username solo puede contener letras, números, guiones y guión bajo.',
-            
+
             'role.required' => 'Debe seleccionar un rol.',
             'role.in' => 'El rol seleccionado no es válido. Solo se permite archivista o lector.',
         ];

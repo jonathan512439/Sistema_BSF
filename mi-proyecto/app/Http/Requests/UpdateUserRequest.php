@@ -2,7 +2,6 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\Authorization\AuthorizesRequests;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 use App\Models\User;
@@ -12,8 +11,6 @@ use App\Models\User;
  */
 class UpdateUserRequest extends FormRequest
 {
-    use AuthorizesRequests;
-
     /**
      * Determine if the user is authorized to make this request.
      */
@@ -80,17 +77,17 @@ class UpdateUserRequest extends FormRequest
         return [
             'name.required' => 'El nombre es obligatorio.',
             'name.min' => 'El nombre debe tener al menos 3 caracteres.',
-            
+
             'email.required' => 'El email es obligatorio.',
             'email.email' => 'Debe proporcionar un email válido.',
             'email.unique' => 'Este email ya está registrado en el sistema.',
-            
+
             'role.required' => 'Debe seleccionar un rol.',
             'role.in' => 'El rol seleccionado no es válido.',
-            
+
             'status.required' => 'Debe seleccionar un estado.',
             'status.in' => 'El estado seleccionado no es válido.',
-            
+
             'reason.required_if' => 'Debe proporcionar un motivo al deshabilitar un usuario.',
             'reason.max' => 'El motivo no puede exceder 500 caracteres.',
         ];

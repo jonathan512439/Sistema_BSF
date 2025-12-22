@@ -74,7 +74,7 @@
             </div>
             
             <div class="detail-row">
-              <span class="label">💾 Tamaño:</span>
+              <span class="label">Tamaño:</span>
               <span class="value">{{ formatBytes(version.archivo_size_bytes) }}</span>
             </div>
             
@@ -84,7 +84,7 @@
             </div>
             
             <div class="detail-row full-width">
-              <span class="label">📝 Motivo:</span>
+              <span class="label">Motivo:</span>
               <p class="motivo">{{ version.version_motivo }}</p>
             </div>
           </div>
@@ -105,17 +105,17 @@
           <!-- Acciones -->
           <div class="version-actions">
             <button @click="verVersion(version)" class="btn-secondary">
-              👁️ Ver
+              Ver
             </button>
             <button @click="descargarVersion(version)" class="btn-primary">
-              📥 Descargar
+              Descargar
             </button>
             <button 
               v-if="!version.es_version_actual && can('doc.version') && !isSealed"
               @click="showRestoreModal(version)"
               class="btn-warning"
             >
-              ♻️ Restaurar
+              Restaurar
             </button>
           </div>
         </div>
@@ -161,7 +161,7 @@
         <div v-if="uploadMode === 'pdf'" class="upload-mode">
           <!-- Upload de PDF directo -->
           <div class="form-group">
-            <label>Archivo PDF *</label>
+            <label>Archivo PDF <span class="asterisco-rojo">*</span></label>
             <input 
               type="file"
               ref="fileInput"
@@ -177,11 +177,11 @@
         <!-- MODO 2: Agregar Páginas desde Imágenes -->
         <div v-else-if="uploadMode === 'agregar-paginas'" class="upload-mode">
           <div class="info-agregar-paginas">
-            <p>📌 Las imágenes seleccionadas se <strong>agregarán al final</strong> del PDF actual, creando una nueva versión.</p>
+            <p> <v-icon name="info" /> * Las imágenes seleccionadas se <strong>agregarán al final</strong> del PDF actual, creando una nueva versión.</p>
           </div>
           
           <div class="form-group">
-            <label>Imágenes a agregar *</label>
+            <label>Imágenes a agregar <span class="asterisco-rojo">*</span></label>
             <input 
               type="file"
               ref="imagenesInput"
@@ -212,7 +212,7 @@
         </div>
         
         <div class="form-group">
-          <label>Motivo del cambio *</label>
+          <label>Motivo del cambio <span class="asterisco-rojo">*</span></label>
           <textarea
             v-model="uploadForm.motivo"
             rows="4"
@@ -497,8 +497,19 @@ async function agregarPaginasConImagenes() {
     const result = response.data
     
     if (result.ok) {
-      success('Páginas Agregadas', result.message || 'Se agregaron las páginas al documento')
+      success('Páginas Agregadas Exitosamente', 
+        result.message || 'Las nuevas páginas se han agregado al documento. Si al ver el documento no aparecen las nuevas páginas, presiona Ctrl+Shift+R para forzar la recarga.')
+      
+      // Recargar versiones
       await loadVersions()
+      
+      // Emitir evento al componente padre para que refresque
+      // (si el componente está embebido en un viewer, esto fuerza el refresh)
+      window.dispatchEvent(new CustomEvent('document-updated', { 
+        detail: { documentoId: route.params.id } 
+      }))
+      
+      // Cerrar modal y limpiar
       showUploadModal.value = false
       uploadForm.value = { archivo: null, motivo: '' }
       imagenesSeleccionadas.value = []
@@ -855,7 +866,10 @@ onMounted(() => {
   margin: 0 0.5rem;
   color: #9ca3af;
 }
-
+.asterisco-rojo {
+    color: red;
+    font-weight: bold; /* Opcional, para mayor visibilidad */
+}
 .valor-nuevo {
   color: #16a34a;
   font-weight: 600;

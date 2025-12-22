@@ -594,8 +594,17 @@ const mostrarValidar = computed(() => {
 })
 
 const puedeEliminar = computed(() => {
-  const estadosPermitidos = ['capturado', 'pendiente']
-  return estadosPermitidos.includes(det.value?.documento?.estado || props.doc.estado)
+  const estado = det.value?.documento?.estado || props.doc.estado
+  if (!estado) return false
+  
+  // Estados que permiten eliminación
+  const estadosPermitidos = ['capturado', 'pendiente', 'procesado_ocr']
+  
+  // Estados que bloquean eliminación (protegidos)
+  const estadosBloqueados = ['validado', 'sellado', 'custodio']
+  
+  // Permitir solo si está en estados permitidos Y NO en estados bloqueados
+  return estadosPermitidos.includes(estado) && !estadosBloqueados.includes(estado)
 })
 
 const custodiaHash = computed(() => {

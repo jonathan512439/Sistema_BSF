@@ -685,13 +685,30 @@ class DocumentVersionService
                 throw new \Exception("No se encontró el archivo físico del PDF en: {$rutaPdfActual}. Verifique que el archivo no haya sido movido o eliminado del almacenamiento.");
             }
 
-            // 3. Contar páginas
+            //  3. Contar páginas
             $paginasAnteriores = $this->contarPaginasPDF($rutaPdfActual);
             $paginasNuevas = count($imagenes);
             $paginasTotal = $paginasAnteriores + $paginasNuevas;
 
+            Log::info("[AGREGAR_PAGINAS] Conteo de páginas", [
+                'anteriores' => $paginasAnteriores,
+                'nuevas' => $paginasNuevas,
+                'total' => $paginasTotal,
+                'pdf_actual' => $rutaPdfActual
+            ]);
+
             // 4. Combinar PDF + imágenes
+            Log::info("[AGREGAR_PAGINAS] Llamando a PDFCombiner", [
+                'num_imagenes' => count($imagenes)
+            ]);
+
             $pdfCombinado = $pdfCombiner->combinarPdfConImagenes($rutaPdfActual, $imagenes);
+
+            Log::info("[AGREGAR_PAGINAS] PDF combinado creado", [
+                'ruta' => $pdfCombinado,
+                'existe' => file_exists($pdfCombinado),
+                'tamano' => file_exists($pdfCombinado) ? filesize($pdfCombinado) : 0
+            ]);
 
             // 5. Preparar nueva versión
             $numeroVersion = $documento->total_versiones + 1;
@@ -699,11 +716,22 @@ class DocumentVersionService
             $tamanoBytes = filesize($pdfCombinado);
 
             // 6. Guardar archivo permanente
+            Log::info("[AGREGAR_PAGINAS] Guardando archivo permanente", [
+                'documento_id' => $documento->id,
+                'version' => $numeroVersion
+            ]);
+
             $rutaRelativa = $this->guardarArchivo(
                 new \Illuminate\Http\File($pdfCombinado),
                 $documento->id,
                 $numeroVersion
             );
+
+            Log::info("[AGREGAR_PAGINAS] Archivo permanente guardado", [
+                'ruta_relativa' => $rutaRelativa,
+                'ruta_absoluta' => storage_path('app/' . $rutaRelativa),
+                'existe' => Storage::disk('local')->exists($rutaRelativa)
+            ]);
 
             // 7. Crear versión (sin DocumentoArchivo - datos van directo en version)
             $motivoCompleto = sprintf(
@@ -758,11 +786,23 @@ class DocumentVersionService
             $version->es_version_actual = true;
             $version->save();
 
+            Log::info("[AGREGAR_PAGINAS] Versión marcada como actual", [
+                'version_id' => $version->id,
+                'version_numero' => $version->version_numero,
+                'archivo_path' => $version->archivo_path
+            ]);
+
             // 11. Actualizar documento principal para apuntar a la nueva versión
             $documento->version_actual = $numeroVersion;
             $documento->total_versiones = $numeroVersion;
             // La ruta del archivo se mantiene en documento_versiones.archivo_path, no en documentos
             $documento->save();
+
+            Log::info("[AGREGAR_PAGINAS] Documento actualizado", [
+                'documento_id' => $documento->id,
+                'version_actual' => $documento->version_actual,
+                'total_versiones' => $documento->total_versiones
+            ]);
 
             // 12. Auditoría (DESHABILITADO - AuditService no existe)
             // app(AuditService::class)->append(

@@ -70,8 +70,9 @@
       <div v-if="loadError" class="error">{{ loadError }}</div>
 
       <div class="wm-overlay" v-if="!loadError">
-        {{ wm.user }} · {{ wm.email }} · {{ wm.ip }} ·
-        {{ wm.ts }} · {{ watermarkHash || '(sin hash de custodia)' }}
+        <div v-for="n in 5" :key="n" class="wm-line">
+          {{ wm.user }} · {{ wm.email }} · {{ wm.ip }} · {{ wm.ts }}
+        </div>
       </div>
 
       <iframe v-if="pdfUrl && !loadError" :src="pdfUrl" class="iframe"></iframe>
@@ -201,9 +202,12 @@ async function load () {
 
     streamBase.value = `/api/stream/${props.documentoId}`
     const baseView = meta?.archivo?.stream_url || `${streamBase.value}/view`
+    
+    // Agregar timestamp para evitar caché del navegador
+    const cacheBuster = `_t=${Date.now()}`
     const viewUrl = motivoId.value
-      ? `${baseView}?motivo_id=${motivoId.value}`
-      : `${baseView}`
+      ? `${baseView}?motivo_id=${motivoId.value}&${cacheBuster}`
+      : `${baseView}?${cacheBuster}`
     
     // Agregar #toolbar=0 para ocultar la barra de herramientas del PDF
     pdfUrl.value = `${viewUrl}#toolbar=0`
@@ -325,9 +329,11 @@ watch(
     motivoId.value = newVal
     if (streamBase.value) {
       const baseView = `${streamBase.value}/view`
+      // Agregar timestamp para evitar caché del navegador
+      const cacheBuster = `_t=${Date.now()}`
       const viewUrl = motivoId.value
-        ? `${baseView}?motivo_id=${motivoId.value}`
-        : baseView
+        ? `${baseView}?motivo_id=${motivoId.value}&${cacheBuster}`
+        : `${baseView}?${cacheBuster}`
       // Agregar #toolbar=0 para ocultar la barra de herramientas del PDF
       pdfUrl.value = `${viewUrl}#toolbar=0`
     }
@@ -470,15 +476,20 @@ watch(
 .wm-overlay {
   position: absolute;
   inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: 18px;
-  opacity: 0.18;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-evenly;
+  align-items: center;
+  font-size: 16px;
+  font-weight: 600;
+  opacity: 0.25;
   transform: rotate(-24deg);
   pointer-events: none;
   z-index: 9999;
   text-align: center;
-  white-space: pre-wrap;
+  white-space: nowrap;
+  color: #000;
+  line-height: 1.8;
 }
 
 /* Certification Confirmation Modal */

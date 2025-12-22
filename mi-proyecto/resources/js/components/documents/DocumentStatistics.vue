@@ -22,32 +22,38 @@
     </div>
     
     <div v-else class="stats-dashboard">
-      <!-- Métricas Principales -->
-      <div class="metrics-grid">
-        <div class="metric-card primary">
-          <div class="metric-icon">📊</div>
-          <div class="metric-content">
-            <div class="metric-value">{{ stats.total_documentos }}</div>
-            <div class="metric-label">Total de Documentos</div>
-          </div>
-        </div>
-        
-        <div v-if="!isReader" class="metric-card success">
-          <div class="metric-icon">🔓</div>
-          <div class="metric-content">
-            <div class="metric-value">{{ stats.no_confidenciales }}</div>
-            <div class="metric-label">No Confidenciales</div>
-          </div>
-        </div>
-        
-        <div v-if="!isReader" class="metric-card warning">
-          <div class="metric-icon">🔒</div>
-          <div class="metric-content">
-            <div class="metric-value">{{ stats.confidenciales }}</div>
-            <div class="metric-label">Confidenciales</div>
-          </div>
-        </div>
-      </div>
+<!-- Métricas Principales -->
+<div class="metrics-grid">
+  <div class="metric-card primary">
+    <div class="metric-icon icon-green">
+      <i class="fas fa-chart-bar"></i>
+    </div>
+    <div class="metric-content">
+      <div class="metric-value">{{ stats.total_documentos }}</div>
+      <div class="metric-label">Total de Documentos</div>
+    </div>
+  </div>
+
+  <div v-if="!isReader" class="metric-card success">
+    <div class="metric-icon icon-green">
+      <i class="fas fa-lock-open"></i>
+    </div>
+    <div class="metric-content">
+      <div class="metric-value">{{ stats.no_confidenciales }}</div>
+      <div class="metric-label">No Confidenciales</div>
+    </div>
+  </div>
+
+  <div v-if="!isReader" class="metric-card warning">
+    <div class="metric-icon icon-green">
+      <i class="fas fa-lock"></i>
+    </div>
+    <div class="metric-content">
+      <div class="metric-value">{{ stats.confidenciales }}</div>
+      <div class="metric-label">Confidenciales</div>
+    </div>
+  </div>
+</div>
 
       <!-- Grids de Distribución 
       <div class="distribution-grid">
@@ -584,6 +590,23 @@ onMounted(() => {
   white-space: nowrap;
   margin-left: 1rem;
 }
+.metric-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.icon-green {
+  background-color: #e6f4ea; /* verde suave */
+}
+
+.icon-green i {
+  color: #000000; /* cuerpo negro */
+  font-size: 20px;
+}
 
 .empty-state {
   text-align: center;
@@ -630,5 +653,6 @@ onMounted(() => {
   .activity-date {
     margin-left: 0;
   }
+  
 }
 </style>

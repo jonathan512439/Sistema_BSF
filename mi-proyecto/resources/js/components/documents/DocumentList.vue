@@ -334,7 +334,9 @@ const openViewer = (documento) =>
 {
   console.log('openViewer called with:', documento)
   // Interceptar apertura para pedir motivo primero
-  pendingDocId.value = documento.id
+  // Manejar tanto objeto como ID directo
+  const docId = typeof documento === 'object' ? documento.id : documento
+  pendingDocId.value = docId
   tempMotivoId.value = null
   showMotivoModal.value = true
 }
